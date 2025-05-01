@@ -47,4 +47,7 @@ BOOLEAN HTSize(HashTable p);
 /* Destruye la estructura*/
 BOOLEAN HTDestroy(HashTable p);
 
+// agregada funcion para imprimir
+void HTPrint(HashTable ht);
+
 #endif

@@ -11,10 +11,10 @@
 #include "confirm.h"
 #include "HashTable.h"
 
-#define INITIAL_CAP 50
+#define INITIAL_CAP 5
 #define MAX_COLLISIONS 5
+#define MAX_LOAD 0.7 // tasa de carga maxima, para hacer resize
 #define DELETED_KEY "__deleted__" // marcar las celdas borradas, para evitar problemas con el hashing doble 
-
 
 /*
 typedef struct _celda {
@@ -82,12 +82,12 @@ long _stringLong(char* clave) {
 	*/
 	
 	int length = strlen(clave);
-	int result = 0;
+	long result = 0;
 
 	// recorrer la clave char a char, obtener el valor de cada uno y sumar
 	// ejemplo _stringLong("ABC") = 65*10000 + 66*100 + 67 = 656667
 	for (int i = 0; i < length; i++) {
-		result += clave[i] * pow(100, length - i - 1);
+		result = result * 100 + clave[i];
 	}
 
 	return result;
@@ -121,14 +121,87 @@ cap actual de la HT, y no del cap inicial
 */
 
 int _hash(char* clave, int cap, int i) {
-	return ((_stringLong(clave) % cap) + i * i) % cap;
+	long baseHash = _stringLong(clave);
+	long hash = ((baseHash % cap) + i * i) % cap;
+	if (hash < 0) hash += cap; // asegurar que sea positivo
+	return (int)hash;
+
+	//return ((_stringLong(clave) % cap) + i * i) % cap;
 }
+
 
 /* Agrega el valor con la clave dada en el hash table, en el caso de repetir la clave se sobreescriben los datos
 Devuelve TRUE si tuvo exito, sino FALSE*/
 BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
 	CONFIRM_RETVAL(p, FALSE);
 	CONFIRM_RETVAL(clave, FALSE);
+
+	while (TRUE) {
+		// si ya se llego a la carga maxima, hacer resize duplicando el tamanho
+		float load = (float)(p->tam + 1) / p->cap;
+		printf("carga actual: %f ||", load);
+		if (load > MAX_LOAD) {
+			if (!_HTResize(p, (p->cap * 2))) return FALSE;
+		}
+
+		int i = 0; // intentos
+		while (i <= MAX_COLLISIONS) {
+
+			// obtenemos una posicion con la funcion hash
+			int pos = _hash(clave, p->cap, i);
+			printf("insertar en posicion %d\n", pos);
+
+			// si ya hay una clave guardada en esa celda
+			Celda* celda = p->arr[pos];
+			if (celda != NULL && celda->clave != NULL) {
+				// si es una clave repetida, sobreescribir el valor
+				if (strcmp(celda->clave, clave) == 0) {
+					p->arr[pos]->valor = valor;
+					return TRUE;
+				}
+				// si es una clave __deleted__, puede reutilizarse
+				else if (strcmp(celda->clave, DELETED_KEY) == 0) {
+					free(p->arr[pos]->clave);
+					p->arr[pos]->clave = _strdup(clave);
+					CONFIRM_RETVAL(p->arr[pos]->clave, FALSE);
+					p->arr[pos]->valor = valor;
+					p->tam++;
+					return TRUE;
+				}
+				else { // si es otra clave, es una colision
+					i++; // aumentamos el num de intentos
+				}
+			}
+
+			// si no hay una clave, crear una celda y asignarle los valores
+			else {
+				Celda* c = (Celda*)malloc(sizeof(Celda));
+				CONFIRM_RETVAL(c, FALSE);
+				c->clave = _strdup(clave);
+				CONFIRM_RETVAL(c->clave, FALSE);
+				c->valor = valor;
+				p->arr[pos] = c;
+				p->tam++;
+				return TRUE;
+			}
+		}
+		// se llego al max de colisiones, redimensionar
+		if (!_HTResize(p, p->cap * 2)) return FALSE;
+		
+	}
+	return FALSE;
+}
+
+/* Agrega el valor con la clave dada en el hash table, en el caso de repetir la clave se sobreescriben los datos
+Devuelve TRUE si tuvo exito, sino FALSE
+BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
+	CONFIRM_RETVAL(p, FALSE);
+	CONFIRM_RETVAL(clave, FALSE);
+
+	// si ya se llego a la carga maxima, hacer resize duplicando el tamanho
+	if ((float)(p->tam + 1) / p->cap > MAX_LOAD) {
+		if (!_HTResize(p, (p->cap*2))) return FALSE;
+	}
 
 	int i = 0; // intentos
 	while (i <= MAX_COLLISIONS) {
@@ -144,8 +217,10 @@ BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
 			}
 			// si es una clave deleted, puede sobreescribirse
 			else if (strcmp(p->arr[pos]->clave, DELETED_KEY) == 0) {
-				p->arr[pos]->clave == clave;
+				free(p->arr[pos]->clave); 
+				p->arr[pos]->clave = strdup(clave); 
 				p->arr[pos]->valor = valor;
+				p->tam++; 
 				return TRUE;
 			}
 			else { // si es otra clave, es una colision
@@ -162,9 +237,13 @@ BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
 			return TRUE;
 		}
 	}
-	// falta hacer el resize!!! 
+	// si se llego al max de colisiones, redimensionar
+	_HTResize(p, p->cap * 2);
+	// intentar insertar de nuevo
+	return HTPut(p, clave, valor);
+
 	return FALSE;
-}
+}*/
 
 /* Obtiene el valor asociado a la clave dentro del HashTable y lo pasa por referencia a retval
 Devuelve TRUE si tuvo exito, sino FALSE*/
@@ -176,7 +255,8 @@ BOOLEAN HTGet(HashTable p, char* clave, void** retval) {
 		// obtenemos una posicion con la funcion hash
 		int pos = _hash(clave, p->cap, i);
 		// verificar si la clave coincide con la celda en la posicion obtenida
-		if (strcmp(p->arr[pos]->clave, clave) == 0) {
+		if (p->arr[pos] != NULL && p->arr[pos]->clave != NULL &&
+			strcmp(p->arr[pos]->clave, clave) == 0) {
 			*retval = p->arr[pos]->valor;
 			return TRUE;
 		}
@@ -197,7 +277,8 @@ BOOLEAN HTRemove(HashTable p, char* clave) {
 			strcmp(p->arr[pos]->clave, clave) == 0) {
 			// marcar como eliminada
 			free(p->arr[pos]->clave); 
-			p->arr[pos]->clave = strdup(DELETED_KEY);
+			p->arr[pos]->clave = _strdup(DELETED_KEY);
+			CONFIRM_RETVAL(p->arr[pos]->clave, FALSE);
 			p->arr[pos]->valor = NULL; 
 			p->tam--;
 			return TRUE;
@@ -217,7 +298,7 @@ BOOLEAN HTContains(HashTable p, char* clave) {
 		int pos = _hash(clave, p->cap, i);
 
 		// si hay un valor, verificar si su clave coincide (y que no sea una celda deleted)
-		if (p->arr[pos]->clave != NULL && strcmp(p->arr[pos]->clave, clave) == 0 &&
+		if (p->arr[pos] != NULL && p->arr[pos]->clave != NULL && strcmp(p->arr[pos]->clave, clave) == 0 &&
 			strcmp(p->arr[pos]->clave, DELETED_KEY) != 0) {
 			return TRUE;
 		}
@@ -247,4 +328,64 @@ BOOLEAN HTDestroy(HashTable p) {
 	free(p->arr);
 	free(p);
 	return TRUE;
+}
+
+/* Redimensiona la tabla y asigna los nuevos indices a todas las celdas */
+BOOLEAN _HTResize(HashTable ht, int newCap) {
+	CONFIRM_RETVAL(ht, FALSE);
+
+	// crear el arreglo nuevo 
+	Celda** newArr = (Celda**)calloc(newCap, sizeof(Celda*));
+	CONFIRM_RETVAL(newArr, FALSE);
+	
+	// copiar el arreglo viejo y su tamanho
+	Celda** oldArr = ht->arr;
+	int oldCap = ht->cap;
+
+	// reinicializar los valores de la hashtable
+	ht->arr = newArr;
+	ht->tam = 0;
+	ht->cap = newCap;
+	printf("----------------------------------------");
+	printf("Se hizo resize, tamanho nuevo: %d", newCap);
+	// recorrer el array viejo para copiar las celdas
+	for (int i = 0; i < oldCap; i++) {
+		// copiaremos solo las celdas validas, es decir no las __deleted__
+		if (oldArr[i] != NULL && oldArr[i]->clave != NULL &&
+			strcmp(oldArr[i]->clave, DELETED_KEY) != 0) {
+			
+			// ponemos en su nuevo lugar
+			HTPut(ht, oldArr[i]->clave, oldArr[i]->valor);
+			free(oldArr[i]->clave);
+			free(oldArr[i]);
+		}
+		// si es una celda __deleted__, debemos liberarla 
+		else if (oldArr[i] != NULL) {
+			if (oldArr[i]->clave != NULL) free(oldArr[i]->clave);
+			free(oldArr[i]);
+		}
+	}
+	
+	free(oldArr);
+	return TRUE;
+}
+
+// funcion de pruebas, para ht de valores numericos
+void HTPrint(HashTable ht) {
+	printf("Tabla Hash (tamanho: %d):\n", ht->cap);
+	for (int i = 0; i < ht->cap; i++) {
+		// si la celda no es null
+		if (ht->arr[i] != NULL && ht->arr[i]->clave != NULL) {
+			// imprimir clave "borrada"
+			if (strcmp(ht->arr[i]->clave, DELETED_KEY) == 0) {
+				printf("  [%d] <eliminado>\n", i);
+			}
+			else { // imprimir celda valida
+				printf("  [%d] %s => %ld\n", i, ht->arr[i]->clave, *(int*)ht->arr[i]->valor);
+
+			}
+		} else { // si la celda es null, celda vacia
+			printf("  [%d] <vacio>\n", i);
+		}
+	}
 }
