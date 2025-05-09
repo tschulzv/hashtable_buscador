@@ -32,12 +32,15 @@ BOOLEAN LLAdd(List l, int val) {
 
 	n->val = val;
 	n->next = NULL;
-	if (isEmpty(l)) {
+	if (LLIsEmpty(l)) {
 		l->front = n;
 		l->end = n;
 	}
-	l->end->next = n;
-	l->end = n;
+	else {
+		l->end->next = n;
+		l->end = n;
+	}
+	
 	return TRUE;
 }
 

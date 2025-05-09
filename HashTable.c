@@ -11,7 +11,7 @@
 #include "confirm.h"
 #include "HashTable.h"
 
-#define INITIAL_CAP 5
+#define INITIAL_CAP 1000
 #define MAX_COLLISIONS 5
 #define MAX_LOAD 0.7 // tasa de carga maxima, para hacer resize
 #define DELETED_KEY "__deleted__" // marcar las celdas borradas, para evitar problemas con el hashing doble 
@@ -139,7 +139,7 @@ BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
 	while (TRUE) {
 		// si ya se llego a la carga maxima, hacer resize duplicando el tamanho
 		float load = (float)(p->tam + 1) / p->cap;
-		printf("carga actual: %f ||", load);
+		//printf("carga actual: %f ||", load);
 		if (load > MAX_LOAD) {
 			if (!_HTResize(p, (p->cap * 2))) return FALSE;
 		}
@@ -149,7 +149,7 @@ BOOLEAN HTPut(HashTable p, char* clave, void* valor) {
 
 			// obtenemos una posicion con la funcion hash
 			int pos = _hash(clave, p->cap, i);
-			printf("insertar en posicion %d\n", pos);
+			//printf("insertar en posicion %d\n", pos);
 
 			// si ya hay una clave guardada en esa celda
 			Celda* celda = p->arr[pos];
