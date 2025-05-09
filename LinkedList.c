@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include "confirm.h"
 #include "LinkedList.h"
+#include "HashTable.h"
 
 
 List LLCreate() {
@@ -24,12 +25,12 @@ BOOLEAN LLIsEmpty(List l) {
 	return (l->front == NULL);
 }
 
-BOOLEAN LLAdd(List l, void* x) {
+BOOLEAN LLAdd(List l, int val) {
 	if (l == NULL) { return FALSE; }
 	Node n = (Node)malloc(sizeof(Node));
 	if (n == NULL) { return FALSE; }
 
-	n->val = x;
+	n->val = val;
 	n->next = NULL;
 	if (isEmpty(l)) {
 		l->front = n;

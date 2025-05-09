@@ -1,7 +1,7 @@
 #include "boolean.h"
 
 typedef struct __Node {
-	void* val;
+	int val;
 	struct __Node* next;
 }_Node;
 
@@ -23,7 +23,7 @@ List LLCreate();
 BOOLEAN LLIsEmpty(List l);
 
 /*inserta al final de la lista*/
-BOOLEAN LLAdd(List l, void* x);
+BOOLEAN LLAdd(List l, int val);
 
 /*obtener primer elemento de la lista*/
 BOOLEAN LLGetFirst(List l, void* retval);
