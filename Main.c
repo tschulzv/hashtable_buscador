@@ -39,7 +39,12 @@ typedef struct {
 // funcion usada para heapsort de PrioValue
 // con posicion en el libro como criterio de ordenacion
 int comparator(const void* a, const void* b) {
-	return ((PrioValue)a)->prio - ((PrioValue)b)->prio;
+	const HeapItem* x = (const HeapItem*)a;
+	const HeapItem* y = (const HeapItem*)b;
+	
+	if (x->pos < y->pos) return -1;
+	if (x->pos > y->pos) return 1;
+	return 0;
 }
 
 // buscar palabras
